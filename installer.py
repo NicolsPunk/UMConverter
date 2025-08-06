@@ -166,7 +166,7 @@ class Localization:
         """Определение языка системы"""
         try:
             # Пробуем определить язык системы
-            system_lang = locale.getdefaultlocale()[0]
+            system_lang = locale.getlocale()[0]
             if system_lang and system_lang.startswith('ru'):
                 return 'ru'
             else:
