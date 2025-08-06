@@ -47,5 +47,5 @@ ffmpeg.sh
 Thumbs.db
 
 # Project specific
-examples/output/
 temp/
+converted/
