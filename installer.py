@@ -402,102 +402,55 @@ ffmpeg.exe %*
             logger.error(self.loc.get('ffmpeg_test_error', str(e)))
             return False
     
-    def create_sample_files(self):
-        """Создание примеров файлов"""
-        logger.info(self.loc.get('creating_samples'))
-        
-        examples_dir = Path("examples")
-        examples_dir.mkdir(exist_ok=True)
-        
-        # Создаем README для примеров
-        examples_readme = """# Примеры использования конвертера / Usage Examples
-
-## Запуск GUI конвертера / Run GUI converter
-```bash
-python gui_converter.py
-```
-
-## Запуск командной строки конвертера / Run CLI converter
-```bash
-python convert_media.py "папка_с_файлами" -o "папка_для_сохранения" -q 80
-```
-
-## Сборка FFmpeg из исходников / Build FFmpeg from source
-```bash
-python build_ffmpeg.py
-```
-
-## Поддерживаемые форматы / Supported formats
-
-### Видео / Video
-- Входные / Input: MP4, AVI, MOV, MKV, WMV, FLV, WebM
-- Выходные / Output: MP4, WebM, AVI, MKV, MOV
-
-### Аудио / Audio
-- Входные / Input: MP3, WAV, AAC, OGG, FLAC, M4A
-- Выходные / Output: MP3, WAV, AAC, OGG, OPUS
-
-### Изображения / Images
-- Входные / Input: JPG, PNG, BMP, TIFF, WebP
-- Выходные / Output: WebP, JPG, PNG
-"""
-        
-        with open(examples_dir / "README.md", "w", encoding="utf-8") as f:
-            f.write(examples_readme)
-        
+    def create_gitignore(self): 
         # Создаем .gitignore
         gitignore_content = """# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+                            __pycache__/
+                            *.py[cod]
+                            *$py.class
+                            *.so
+                            .Python
+                            build/
+                            develop-eggs/
+                            dist/
+                            downloads/
+                            eggs/
+                            .eggs/
+                            lib/
+                            lib64/
+                            parts/
+                            sdist/
+                            var/
+                            wheels/
+                            *.egg-info/
+                            .installed.cfg
+                            *.egg
 
-# Virtual environments
-venv/
-env/
-ENV/
+                            # IDE
+                            .vscode/
+                            .idea/
+                            *.swp
+                            *.swo
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+                            # Logs
+                            *.log
+                            conversion.log
+                            gui_conversion.log
+                            
+                            .gitignore
 
-# Logs
-*.log
-conversion.log
-gui_conversion.log
+                            # Build artifacts
+                            bin/
 
-# Build artifacts
-build/
-bin/
-ffmpeg.bat
-ffmpeg.sh
+                            # OS
+                            .DS_Store
+                            Thumbs.db
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Project specific
-examples/output/
-temp/
-"""
+                            # Project specific
+                            converted/
+                            *.bat
+                            *.sh
+                            """
         
         with open(".gitignore", "w", encoding="utf-8") as f:
             f.write(gitignore_content)
@@ -512,13 +465,11 @@ temp/
             launchers = {
                 "run_gui.bat": "@echo off\npython gui_converter.py\npause",
                 "run_cli.bat": "@echo off\npython convert_media.py %*\npause",
-                "build_ffmpeg.bat": "@echo off\npython build_ffmpeg.py\npause"
             }
         else:
             launchers = {
                 "run_gui.sh": "#!/bin/bash\npython3 gui_converter.py",
                 "run_cli.sh": "#!/bin/bash\npython3 convert_media.py \"$@\"",
-                "build_ffmpeg.sh": "#!/bin/bash\npython3 build_ffmpeg.py"
             }
         
         for filename, content in launchers.items():
@@ -567,7 +518,7 @@ temp/
                     logger.info(self.loc.get('use_wrapper'))
         
         # Создаем примеры файлов
-        self.create_sample_files()
+        self.create_gitignore()
         
         # Создаем скрипты запуска
         self.create_launcher_scripts()
