@@ -5,20 +5,19 @@
 """
 
 import os
-import sys
 import threading
 import subprocess
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
-from PIL import Image, ImageTk
 import json
 import time
+import re
 
-# Импорт для drag&drop
+# drag&drop
 try:
     from tkinterdnd2 import TkinterDnD, DND_ALL
 except ImportError:
@@ -320,6 +319,16 @@ class ModernConverterGUI:
         self.drop_text.bind("<Enter>", self._on_drop_area_enter)
         self.drop_text.bind("<Leave>", self._on_drop_area_leave)
         
+        # Добавляем кнопку для выбора папки
+        # folder_btn = ctk.CTkButton(
+        #     self.start_frame,
+        #     text="📁 Выбрать папку с файлами",
+        #     command=self._select_folder_with_files,
+        #     height=40,
+        #     fg_color="gray"
+        # )
+        # folder_btn.pack(pady=(0, 20))
+        
         # Настройка drag&drop для drop_area
         if TkinterDnD:
             self.drop_area.drop_target_register(DND_ALL)
@@ -565,30 +574,59 @@ class ModernConverterGUI:
         try:
             # Получаем данные о сброшенных файлах
             dropped_data = event.data
+            logger.info(f"Получены данные drag&drop: {dropped_data}")
             
             # Очищаем данные от фигурных скобок
             if dropped_data.startswith("{") and dropped_data.endswith("}"):
                 dropped_data = dropped_data[1:-1]
             
-            # Разбираем файлы (могут быть разделены пробелами)
+            # Разбираем файлы
             files = []
-            # Разделяем по пробелам, но учитываем пути с пробелами
-            import re
-            # Используем регулярное выражение для правильного разделения файлов
-            file_paths = re.findall(r'\{[^}]*\}|[^\s]+', dropped_data)
             
-            for file_path in file_paths:
-                # Убираем фигурные скобки если есть
-                file_path = file_path.strip('{}')
-                # Убираем лишние символы
-                file_path = file_path.strip()
-                if file_path and os.path.exists(file_path):
-                    files.append(file_path)
+            # Определяем ОС
+            import platform
+            system = platform.system().lower()
+            
+            if system == "windows":
+                # Для Windows: ищем пути вида C:/path/to/file.ext
+                pattern = r'[A-Za-z]:/[^{}]*?\.\w+(?:\s|$)'
+            elif system == "darwin":  # macOS
+                # Для macOS: ищем пути вида /path/to/file.ext
+                pattern = r'/[^{}]*?\.\w+(?:\s|$)'
+            else:  # Linux
+                # Для Linux: ищем пути вида /path/to/file.ext
+                pattern = r'/[^{}]*?\.\w+(?:\s|$)'
+
+
+            logger.info("Пробуем finditer для поиска полных путей...")
+            matches = re.finditer(pattern, dropped_data, re.IGNORECASE)
+            
+            # Список поддерживаемых расширений
+            supported_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', 
+                                   '.mp3', '.wav', '.aac', '.ogg', '.flac', '.m4a', 
+                                   '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
+            
+            for match in matches:
+                full_path = match.group(0).strip()  # Полный путь
+                
+                # Проверяем расширение файла
+                file_ext = os.path.splitext(full_path)[1].lower()
+                if file_ext not in supported_extensions:
+                    logger.info(f"Пропускаем файл с неподдерживаемым расширением: {full_path}")
+                    continue
+                
+                if full_path and os.path.exists(full_path):
+                    files.append(full_path)
+                    logger.info(f"Добавлен файл (finditer): {full_path}")
+                else:
+                    logger.warning(f"Файл не найден (finditer): {full_path}")
             
             if files:
+                logger.info(f"Всего найдено файлов: {len(files)}")
                 self.selected_files = files
                 self.show_loading_screen()
             else:
+                logger.error("Не удалось найти ни одного файла")
                 messagebox.showwarning("Предупреждение", "Не удалось найти файлы для конвертации")
                 
         except Exception as e:
@@ -611,6 +649,30 @@ class ModernConverterGUI:
         if files:
             self.selected_files = list(files)
             self.show_loading_screen()
+    
+    def _select_folder_with_files(self):
+        """Выбор папки с автоматическим поиском медиафайлов"""
+        folder = filedialog.askdirectory(title="Выберите папку с медиафайлами")
+        
+        if folder:
+            # Поиск всех медиафайлов в папке
+            media_extensions = [
+                '*.mp4', '*.avi', '*.mov', '*.mkv', '*.wmv', '*.flv', '*.webm',
+                '*.mp3', '*.wav', '*.aac', '*.ogg', '*.flac', '*.m4a',
+                '*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tiff', '*.webp'
+            ]
+            
+            files = []
+            for ext in media_extensions:
+                files.extend(Path(folder).glob(ext))
+                files.extend(Path(folder).glob(ext.upper()))
+            
+            if files:
+                self.selected_files = [str(f) for f in files]
+                logger.info(f"Найдено {len(self.selected_files)} файлов в папке {folder}")
+                self.show_loading_screen()
+            else:
+                messagebox.showwarning("Предупреждение", "В выбранной папке не найдено медиафайлов")
     
     def show_start_screen(self):
         """Показать стартовый экран"""
@@ -841,7 +903,7 @@ class ModernConverterGUI:
                     current_ext = input_path.suffix.lower()
                     file_type = self._get_file_type(current_ext)
                     if file_type == "video":
-                        output_format = "mp4"
+                        output_format = "webm"
                     elif file_type == "audio":
                         output_format = "mp3"
                     elif file_type == "image":
