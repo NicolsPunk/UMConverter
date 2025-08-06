@@ -7,7 +7,7 @@ Localization module for installer
 import locale
 import sys
 
-class Localization:
+class InstallerLocalization:
     """Класс для локализации"""
     
     def __init__(self):

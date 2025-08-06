@@ -16,7 +16,7 @@ import json
 # Добавляем путь к модулям
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.localization import Localization
+from utils.installer_localization import Localization
 from installer.ffmpeg_downloader import FFmpegDownloader
 
 # Настройка логирования

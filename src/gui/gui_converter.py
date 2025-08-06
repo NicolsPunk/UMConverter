@@ -10,9 +10,30 @@ import subprocess
 import logging
 from pathlib import Path
 from typing import Dict, List
+
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 import customtkinter as ctk
+from CTkMessagebox import CTkMessagebox
+
+# Импорт локализации
+try:
+    from ..utils.gui_localization import GUILocalization
+except ImportError:
+    # Если относительный импорт не работает, пробуем абсолютный
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        from utils.gui_localization import GUILocalization
+    except ImportError:
+        # Fallback к старой локализации
+        try:
+            from .localization import Localization as GUILocalization
+        except ImportError:
+            print("Warning: Localization not found")
+            GUILocalization = None
+
 import json
 import time
 import re
@@ -222,10 +243,19 @@ class FFmpegConverter:
 class ModernConverterGUI:
     """Современный GUI конвертер с переключением экранов"""
     
-    def __init__(self):
+    def __init__(self, language: str = "ru"):
         self.root = CTk()
-        self.root.title("🎬 Ultimate Media Converter")
-        self.root.geometry("1000x700")
+        
+        # Инициализация локализации
+        if GUILocalization:
+            self.loc = GUILocalization(language)
+        else:
+            # Fallback если локализация не найдена
+            self.loc = None
+            
+        title = self.loc.get("app_title") if self.loc else "🎬 UMConverter"
+        self.root.title(title)
+        self.root.geometry("700x650")
         self.root.resizable(True, True)
         
         # Инициализация конвертера
@@ -234,12 +264,24 @@ class ModernConverterGUI:
         self.output_directory = ""
         self.conversion_running = False
         
+        # Словарь для хранения выбранных форматов файлов
+        self.file_formats = {}
+        
+        # Переменная для отслеживания предыдущего экрана
+        self.previous_screen = None
+        
         # Создание интерфейса
         self._create_widgets()
         self._check_dependencies()
         
         # Показываем стартовый экран
         self.show_start_screen()
+    
+    def _get_text(self, key: str, default: str = None) -> str:
+        """Безопасное получение текста с fallback"""
+        if self.loc:
+            return self.loc.get(key)
+        return default or key
     
     def _create_widgets(self):
         """Создание виджетов интерфейса"""
@@ -254,6 +296,10 @@ class ModernConverterGUI:
         self._create_files_frame()
         self._create_output_frame()
         self._create_progress_frame()
+        
+        # Создание кнопок выбора языка и темы с абсолютной позицией
+        self._create_language_button()
+        self._create_theme_button()
     
     def _create_start_frame(self):
         """Создание стартового экрана с drag&drop"""
@@ -263,7 +309,7 @@ class ModernConverterGUI:
         # Заголовок
         title_label = ctk.CTkLabel(
             self.start_frame, 
-            text="🎬 Конвертер Медиафайлов",
+            text=self._get_text("main_title", "🎬 Ultimate Media Converter"),
             font=ctk.CTkFont(size=32, weight="bold")
         )
         title_label.pack(pady=(50, 20))
@@ -271,7 +317,7 @@ class ModernConverterGUI:
         # Подзаголовок
         subtitle_label = ctk.CTkLabel(
             self.start_frame,
-            text="Перетащите файлы сюда или нажмите для выбора",
+            text=self._get_text("subtitle"),
             font=ctk.CTkFont(size=16),
             text_color="gray"
         )
@@ -300,7 +346,7 @@ class ModernConverterGUI:
         
         self.drop_text = ctk.CTkLabel(
             self.drop_content,
-            text="Перетащите файлы сюда\nили нажмите для выбора",
+            text=self._get_text("drop_area_text"),
             font=ctk.CTkFont(size=18),
             text_color="gray"
         )
@@ -343,7 +389,108 @@ class ModernConverterGUI:
             font=ctk.CTkFont(size=12),
             text_color="gray"
         )
-        self.ffmpeg_status_label.pack(pady=(20, 0))
+        self.ffmpeg_status_label.pack(pady=(40, 0))
+
+    def _change_language(self, choice):
+        """Изменение языка интерфейса"""
+        if "Русский" in choice:
+            if self.loc:
+                self.loc.set_language("ru")
+        elif "English" in choice:
+            if self.loc:
+                self.loc.set_language("en")
+        
+        # Обновляем все тексты интерфейса
+        self._update_interface_texts()
+    
+    def _change_theme(self, choice):
+        """Изменение темы"""
+        if "Темная" in choice or "Dark" in choice:
+            ctk.set_appearance_mode("dark")
+        elif "Светлая" in choice or "Light" in choice:
+            ctk.set_appearance_mode("light")
+        elif "Системная" in choice or "System" in choice:
+            ctk.set_appearance_mode("system")
+    
+    def _create_language_button(self):
+        """Создание кнопки выбора языка"""
+        self.language_button = ctk.CTkButton(
+            self.root,
+            text=("🌐" + self._get_text("language.title")),
+            font=ctk.CTkFont(size=16, weight="bold"),
+            width=80,
+            height=35,
+            command=self._show_language_menu,
+            fg_color="gray",
+            bg_color="transparent",
+            hover_color="darkgray",
+            corner_radius=10
+        )
+        
+        self.language_button.place(relx=0.05, rely=0.05, anchor="nw")
+        self.language_button.lift()
+    
+    def _create_theme_button(self):
+        """Создание кнопки выбора темы"""
+        self.theme_button = ctk.CTkButton(
+            self.root,
+            text=("🎨" + self._get_text("theme.title")),
+            font=ctk.CTkFont(size=16, weight="bold"),
+            width=80,
+            height=35,
+            command=self._show_theme_menu,
+            fg_color="gray",
+            bg_color="transparent",
+            hover_color="darkgray",
+            corner_radius=10
+        )
+        
+        self.theme_button.place(relx=0.95, rely=0.05, anchor="ne")
+        self.theme_button.lift()
+    
+    def _show_language_menu(self):
+        """Показать меню выбора языка"""
+        # Создаем всплывающее меню
+        menu = tk.Menu(self.root, tearoff=0)
+        
+        # Добавляем опции языков
+        menu.add_command(
+            label=self._get_text("🇷🇺 Русский"),
+            command=lambda: self._change_language("🇷🇺 Русский")
+        )
+        menu.add_command(
+            label=self._get_text("🇺🇸 English"),
+            command=lambda: self._change_language("🇺🇸 English")
+        )
+        
+        # Показываем меню рядом с кнопкой
+        x = self.language_button.winfo_rootx()
+        y = self.language_button.winfo_rooty() + self.language_button.winfo_height()
+        menu.post(x, y)
+    
+    def _show_theme_menu(self):
+        """Показать меню выбора темы"""
+        # Создаем всплывающее меню
+        menu = tk.Menu(self.root, tearoff=0)
+        
+        # Добавляем опции тем
+        menu.add_command(
+            label=self._get_text("theme.dark", "🌙 Темная"),
+            command=lambda: self._change_theme("🌙 Темная")
+        )
+        menu.add_command(
+            label=self._get_text("theme.light", "☀️ Светлая"),
+            command=lambda: self._change_theme("☀️ Светлая")
+        )
+        menu.add_command(
+            label=self._get_text("theme.system", "🔄 Системная"),
+            command=lambda: self._change_theme("🔄 Системная")
+        )
+        
+        # Показываем меню рядом с кнопкой
+        x = self.theme_button.winfo_rootx() - 100  # Смещаем влево
+        y = self.theme_button.winfo_rooty() + self.theme_button.winfo_height()
+        menu.post(x, y)
     
     def _create_loading_frame(self):
         """Создание экрана загрузки"""
@@ -351,12 +498,12 @@ class ModernConverterGUI:
         self.loading_frame = ctk.CTkFrame(self.main_frame)
         
         # Заголовок
-        loading_title = ctk.CTkLabel(
+        self.loading_title = ctk.CTkLabel(
             self.loading_frame,
-            text="⏳ Анализ файлов...",
+            text=self._get_text("loading_title"),
             font=ctk.CTkFont(size=24, weight="bold")
         )
-        loading_title.pack(pady=(100, 50))
+        self.loading_title.pack(pady=(100, 50))
         
         # Индикатор загрузки
         self.loading_progress = ctk.CTkProgressBar(
@@ -370,7 +517,7 @@ class ModernConverterGUI:
         # Текст статуса
         self.loading_status = ctk.CTkLabel(
             self.loading_frame,
-            text="Проверка файлов...",
+            text=self._get_text("loading_status"),
             font=ctk.CTkFont(size=16),
             text_color="gray"
         )
@@ -382,12 +529,12 @@ class ModernConverterGUI:
         self.files_frame = ctk.CTkFrame(self.main_frame)
         
         # Заголовок
-        files_title = ctk.CTkLabel(
+        self.files_title = ctk.CTkLabel(
             self.files_frame,
-            text="📋 Список файлов для конвертации",
+            text=self._get_text("files_title"),
             font=ctk.CTkFont(size=24, weight="bold")
         )
-        files_title.pack(pady=(30, 20))
+        self.files_title.pack(pady=(30, 20))
         
         # Scrollable frame для файлов
         self.files_scroll_frame = ctk.CTkScrollableFrame(
@@ -403,7 +550,7 @@ class ModernConverterGUI:
         
         self.back_btn = ctk.CTkButton(
             buttons_frame,
-            text="⬅️ Назад",
+            text=self._get_text("back_btn"),
             command=self.show_start_screen,
             height=40
         )
@@ -411,7 +558,7 @@ class ModernConverterGUI:
         
         self.convert_btn = ctk.CTkButton(
             buttons_frame,
-            text="🚀 Конвертировать",
+            text=self._get_text("convert_btn"),
             command=self.show_output_screen,
             height=40,
             fg_color="green"
@@ -424,12 +571,12 @@ class ModernConverterGUI:
         self.output_frame = ctk.CTkFrame(self.main_frame)
         
         # Заголовок
-        output_title = ctk.CTkLabel(
+        self.output_title = ctk.CTkLabel(
             self.output_frame,
-            text="📁 Выбор папки для сохранения",
+            text=self._get_text("output_title"),
             font=ctk.CTkFont(size=24, weight="bold")
         )
-        output_title.pack(pady=(50, 30))
+        self.output_title.pack(pady=(50, 30))
         
         # Текущая папка
         self.output_path_var = tk.StringVar(value="converted")
@@ -444,7 +591,7 @@ class ModernConverterGUI:
         # Кнопка выбора папки
         self.select_output_btn = ctk.CTkButton(
             self.output_frame,
-            text="📂 Выбрать папку",
+            text=self._get_text("select_output_btn"),
             command=self._select_output_folder,
             height=40
         )
@@ -456,7 +603,7 @@ class ModernConverterGUI:
         
         self.output_back_btn = ctk.CTkButton(
             buttons_frame,
-            text="⬅️ Назад",
+            text=self._get_text("back_btn"),
             command=self.show_files_screen,
             height=40
         )
@@ -464,7 +611,7 @@ class ModernConverterGUI:
         
         self.start_convert_btn = ctk.CTkButton(
             buttons_frame,
-            text="🚀 Начать конвертацию",
+            text=self._get_text("start_convert_btn"),
             command=self.start_conversion,
             height=40,
             fg_color="green"
@@ -477,12 +624,12 @@ class ModernConverterGUI:
         self.progress_frame = ctk.CTkFrame(self.main_frame)
         
         # Заголовок
-        progress_title = ctk.CTkLabel(
+        self.progress_title = ctk.CTkLabel(
             self.progress_frame,
-            text="🔄 Конвертация файлов",
+            text=self._get_text("progress_title"),
             font=ctk.CTkFont(size=24, weight="bold")
         )
-        progress_title.pack(pady=(30, 20))
+        self.progress_title.pack(pady=(30, 20))
         
         # Прогресс бар
         self.progress_bar = ctk.CTkProgressBar(
@@ -496,7 +643,7 @@ class ModernConverterGUI:
         # Статус
         self.progress_status = ctk.CTkLabel(
             self.progress_frame,
-            text="Готов к конвертации...",
+            text=self._get_text("progress_status_ready"),
             font=ctk.CTkFont(size=16),
             text_color="gray"
         )
@@ -510,28 +657,91 @@ class ModernConverterGUI:
         )
         self.log_text.pack(pady=(0, 30))
         
+        # Кнопки управления
+        buttons_frame = ctk.CTkFrame(self.progress_frame)
+        buttons_frame.pack(pady=(20, 0))
+        
         # Кнопка остановки
         self.stop_btn = ctk.CTkButton(
-            self.progress_frame,
-            text="⏹️ Остановить",
+            buttons_frame,
+            text=self._get_text("stop_btn"),
             command=self._stop_conversion,
             height=40,
             fg_color="orange"
         )
-        self.stop_btn.pack()
+        self.stop_btn.pack(side="left")
     
     def _check_dependencies(self):
         """Проверка зависимостей"""
         if self.converter.check_ffmpeg():
             self.ffmpeg_status_label.configure(
-                text="✅ FFmpeg найден и готов к работе",
+                text=self._get_text("ffmpeg_status_ok"),
                 text_color="green"
             )
         else:
             self.ffmpeg_status_label.configure(
-                text="❌ FFmpeg не найден. Установите FFmpeg для работы конвертера",
+                text=self._get_text("ffmpeg_status_error"),
                 text_color="red"
             )
+    
+
+    
+    def _update_interface_texts(self):
+        """Обновление всех текстов интерфейса при смене языка"""
+        # Обновляем заголовки и кнопки
+        if hasattr(self, 'drop_text'):
+            self.drop_text.configure(text=self.loc.get("drop_area_text"))
+        
+        if hasattr(self, 'back_btn'):
+            self.back_btn.configure(text=self.loc.get("back_btn"))
+        
+        if hasattr(self, 'convert_btn'):
+            self.convert_btn.configure(text=self.loc.get("convert_btn"))
+        
+        if hasattr(self, 'select_output_btn'):
+            self.select_output_btn.configure(text=self.loc.get("select_output_btn"))
+        
+        if hasattr(self, 'start_convert_btn'):
+            self.start_convert_btn.configure(text=self.loc.get("start_convert_btn"))
+        
+        if hasattr(self, 'stop_btn'):
+            self.stop_btn.configure(text=self.loc.get("stop_btn"))
+        
+        if hasattr(self, 'progress_status'):
+            self.progress_status.configure(text=self.loc.get("progress_status_ready"))
+        
+        # Обновляем кнопки языка и темы
+        if hasattr(self, 'language_button'):
+            self.language_button.configure(text=self._get_text("language.title", "🌐"))
+        
+        if hasattr(self, 'theme_button'):
+            self.theme_button.configure(text=self._get_text("theme.title", "🎨"))
+        
+        # Обновляем заголовки экранов
+        if hasattr(self, 'files_title'):
+            self.files_title.configure(text=self._get_text("files_title"))
+        
+        if hasattr(self, 'output_title'):
+            self.output_title.configure(text=self._get_text("output_title"))
+        
+        if hasattr(self, 'progress_title'):
+            self.progress_title.configure(text=self._get_text("progress_title"))
+        
+        if hasattr(self, 'loading_title'):
+            self.loading_title.configure(text=self._get_text("loading_title"))
+        
+        # Обновляем статус FFmpeg
+        if hasattr(self, 'ffmpeg_status_label'):
+            if self.converter.check_ffmpeg():
+                self.ffmpeg_status_label.configure(
+                    text=self.loc.get("ffmpeg_status_ok"),
+                    text_color="green"
+                )
+            else:
+                self.ffmpeg_status_label.configure(
+                    text=self.loc.get("ffmpeg_status_error"),
+                    text_color="red"
+                )
     
     def _on_drop_area_click(self, event):
         """Обработка клика по области drag&drop"""
@@ -543,7 +753,7 @@ class ModernConverterGUI:
             fg_color=("gray75", "gray35"),
             border_color=("gray60", "gray40")
         )
-        self.drop_text.configure(text="Отпустите файлы здесь")
+        self.drop_text.configure(text=self._get_text("drop_area_hover"))
     
     def _on_drop_area_leave(self, event):
         """Обработка выхода из области drag&drop"""
@@ -551,7 +761,7 @@ class ModernConverterGUI:
             fg_color=("gray85", "gray25"),
             border_color=("gray70", "gray30")
         )
-        self.drop_text.configure(text="Перетащите файлы сюда\nили нажмите для выбора")
+        self.drop_text.configure(text=self._get_text("drop_area_text"))
     
     def _on_drop_enter(self, event):
         """Обработка входа в область drag&drop с файлами"""
@@ -559,7 +769,7 @@ class ModernConverterGUI:
             fg_color=("gray75", "gray35"),
             border_color=("gray60", "gray40")
         )
-        self.drop_text.configure(text="Отпустите файлы здесь")
+        self.drop_text.configure(text=self._get_text("drop_area_hover"))
     
     def _on_drop_leave(self, event):
         """Обработка выхода из области drag&drop с файлами"""
@@ -567,7 +777,7 @@ class ModernConverterGUI:
             fg_color=("gray85", "gray25"),
             border_color=("gray70", "gray30")
         )
-        self.drop_text.configure(text="Перетащите файлы сюда\nили нажмите для выбора")
+        self.drop_text.configure(text=self._get_text("drop_area_text"))
     
     def _on_drop(self, event):
         """Обработка сброса файлов"""
@@ -627,11 +837,19 @@ class ModernConverterGUI:
                 self.show_loading_screen()
             else:
                 logger.error("Не удалось найти ни одного файла")
-                messagebox.showwarning("Предупреждение", "Не удалось найти файлы для конвертации")
+                CTkMessagebox(
+                    title="Предупреждение",
+                    message=self._get_text("messages.no_files_found"),
+                    icon="warning"
+                )
                 
         except Exception as e:
             logger.error(f"Ошибка обработки drag&drop: {e}")
-            messagebox.showerror("Ошибка", f"Ошибка обработки файлов: {str(e)}")
+            CTkMessagebox(
+                title="Ошибка",
+                message=self._get_text("messages.drop_error", error=str(e)),
+                icon="cancel"
+            )
     
     def _select_files(self):
         """Выбор файлов"""
@@ -672,7 +890,11 @@ class ModernConverterGUI:
                 logger.info(f"Найдено {len(self.selected_files)} файлов в папке {folder}")
                 self.show_loading_screen()
             else:
-                messagebox.showwarning("Предупреждение", "В выбранной папке не найдено медиафайлов")
+                CTkMessagebox(
+                    title="Предупреждение",
+                    message=self._get_text("messages.no_media_files"),
+                    icon="warning"
+                )
     
     def show_start_screen(self):
         """Показать стартовый экран"""
@@ -749,9 +971,34 @@ class ModernConverterGUI:
         file_frame = ctk.CTkFrame(self.files_scroll_frame)
         file_frame.pack(fill="x", pady=5, padx=10)
         
+        # Иконка файла
+        icon_frame = ctk.CTkFrame(file_frame, fg_color="transparent", width=50)
+        icon_frame.pack(side="left", padx=(10, 5), pady=10)
+        icon_frame.pack_propagate(False)
+        
+        # Определяем иконку по типу файла
+        current_ext = Path(file_path).suffix.lower()
+        file_type = self._get_file_type(current_ext)
+        
+        if file_type == "video":
+            icon_text = "🎬"
+        elif file_type == "audio":
+            icon_text = "🎵"
+        elif file_type == "image":
+            icon_text = "🖼️"
+        else:
+            icon_text = "📄"
+        
+        icon_label = ctk.CTkLabel(
+            icon_frame,
+            text=icon_text,
+            font=ctk.CTkFont(size=24)
+        )
+        icon_label.pack(expand=True)
+        
         # Информация о файле
         file_info = ctk.CTkFrame(file_frame, fg_color="transparent")
-        file_info.pack(side="left", fill="x", expand=True, padx=10, pady=10)
+        file_info.pack(side="left", fill="x", expand=True, padx=5, pady=10)
         
         # Имя файла
         file_name = Path(file_path).name
@@ -763,10 +1010,9 @@ class ModernConverterGUI:
         name_label.pack(anchor="w")
         
         # Текущий формат
-        current_ext = Path(file_path).suffix.lower()
         format_label = ctk.CTkLabel(
             file_info,
-            text=f"Текущий формат: {current_ext}",
+            text=self._get_text("current_format"),
             font=ctk.CTkFont(size=12),
             text_color="gray"
         )
@@ -776,37 +1022,47 @@ class ModernConverterGUI:
         format_frame = ctk.CTkFrame(file_frame, fg_color="transparent")
         format_frame.pack(side="right", padx=10, pady=10)
         
-        # Определяем тип файла и доступные форматы
-        file_type = self._get_file_type(current_ext)
-        if file_type == "video":
-            formats = ["mp4", "webm", "avi", "mkv", "mov"]
-        elif file_type == "audio":
-            formats = ["mp3", "wav", "aac", "ogg", "opus"]
-        elif file_type == "image":
-            formats = ["webp", "jpg", "png"]
-        else:
-            formats = ["mp4", "webm", "avi", "mkv", "mov", "mp3", "wav", "aac", "ogg", "opus", "webp", "jpg", "png"]
+        # Определяем доступные форматы из локализации
+        formats = self._get_text("formats." + file_type)
+        if not formats:
+            # Fallback форматы
+            if file_type == "video":
+                formats = ["mp4", "webm", "avi", "mkv", "mov"]
+            elif file_type == "audio":
+                formats = ["mp3", "wav", "aac", "ogg", "opus"]
+            elif file_type == "image":
+                formats = ["webp", "jpg", "png"]
+            else:
+                formats = ["mp4", "webm", "avi", "mkv", "mov", "mp3", "wav", "aac", "ogg", "opus", "webp", "jpg", "png"]
         
         format_combo = ctk.CTkComboBox(
             format_frame,
             values=formats,
             width=100
         )
-        format_combo.set(formats[0])
+        
+        # Устанавливаем значение из сохраненного выбора или первое доступное
+        if index in self.file_formats:
+            saved_format = self.file_formats[index].get()
+            if saved_format in formats:
+                format_combo.set(saved_format)
+            else:
+                format_combo.set(formats[0])
+        else:
+            format_combo.set(formats[0])
+        
         format_combo.pack(side="left", padx=(0, 10))
         
         # Сохраняем ссылку на combo box для получения выбранного формата
-        if not hasattr(self, 'file_formats'):
-            self.file_formats = {}
         self.file_formats[index] = format_combo
         
         # Кнопка удаления
         delete_btn = ctk.CTkButton(
             format_frame,
-            text="🗑️",
+            text=self._get_text("delete_btn"),
             width=30,
             height=30,
-            command=lambda: self._remove_file(index)
+            command=lambda idx=index: self._remove_file(idx)
         )
         delete_btn.pack(side="left")
     
@@ -828,10 +1084,22 @@ class ModernConverterGUI:
     def _remove_file(self, index: int):
         """Удаление файла из списка"""
         if 0 <= index < len(self.selected_files):
+            # Удаляем файл из списка
             self.selected_files.pop(index)
-            # Очищаем словарь форматов
-            if hasattr(self, 'file_formats'):
-                self.file_formats.clear()
+            
+            # Обновляем индексы в словаре форматов
+            new_file_formats = {}
+            for old_index, combo in self.file_formats.items():
+                if old_index < index:
+                    # Индексы до удаляемого файла остаются без изменений
+                    new_file_formats[old_index] = combo
+                elif old_index > index:
+                    # Индексы после удаляемого файла сдвигаются на 1
+                    new_file_formats[old_index - 1] = combo
+            
+            self.file_formats = new_file_formats
+            
+            # Пересоздаем список файлов
             self._populate_files_list()
     
     def _select_output_folder(self):
@@ -848,11 +1116,19 @@ class ModernConverterGUI:
     def start_conversion(self):
         """Начало конвертации"""
         if not self.selected_files:
-            messagebox.showwarning("Предупреждение", "Нет файлов для конвертации")
+            CTkMessagebox(
+                title="Предупреждение",
+                message=self._get_text("messages.no_files_to_convert"),
+                icon="warning"
+            )
             return
         
         if not self.converter.check_ffmpeg():
-            messagebox.showerror("Ошибка", "FFmpeg не найден. Установите FFmpeg для работы конвертера")
+            CTkMessagebox(
+                title="Ошибка",
+                message=self._get_text("messages.ffmpeg_not_found"),
+                icon="cancel"
+            )
             return
         
         # Создаем выходную папку
@@ -871,7 +1147,7 @@ class ModernConverterGUI:
         """Остановка конвертации"""
         self.conversion_running = False
         self.stop_btn.configure(state="disabled")
-        self._log_message("⏹️ Конвертация остановлена пользователем")
+        self._log_message(self._get_text("conversion_stopped"))
     
     def _conversion_worker(self):
         """Рабочий поток конвертации"""
@@ -881,8 +1157,8 @@ class ModernConverterGUI:
             failed = 0
             
             self.conversion_running = True
-            self._log_message("🚀 Начинаем конвертацию...")
-            self.progress_status.configure(text="Конвертация...")
+            self._log_message(self._get_text("conversion_started"))
+            self.progress_status.configure(text=self._get_text("progress_status_converting"))
             
             for i, input_file in enumerate(self.selected_files):
                 if not self.conversion_running:
@@ -913,32 +1189,32 @@ class ModernConverterGUI:
                 
                 output_path = Path(self.output_directory) / f"{input_path.stem}.{output_format}"
                 
-                self._log_message(f"📁 Конвертируем: {input_path.name} -> {output_path.name}")
+                self._log_message(self._get_text("converting_file") + f"{input_path.name} -> {output_path.name}")
                 
                 # Конвертация
                 if self.converter.convert_file(str(input_path), str(output_path), quality=80):
                     successful += 1
-                    self._log_message(f"✅ Успешно: {input_path.name}")
+                    self._log_message(self._get_text("conversion_success") + f"{input_path.name}")
                 else:
                     failed += 1
-                    self._log_message(f"❌ Ошибка: {input_path.name}")
+                    self._log_message(self._get_text("conversion_error") + f"{input_path.name}")
             
             # Завершение
             self.progress_bar.set(1.0)
-            self._log_message(f"📊 Конвертация завершена!")
-            self._log_message(f"✅ Успешно: {successful}")
-            self._log_message(f"❌ Ошибок: {failed}")
+            self._log_message(self._get_text("conversion_completed"))
+            self._log_message(self._get_text("conversion_successful") + f"{successful}")
+            self._log_message(self._get_text("conversion_failed") + f"{failed}")
             
             if failed == 0:
-                self.progress_status.configure(text="✅ Конвертация завершена успешно")
+                self.progress_status.configure(text=self._get_text("progress_status_success"))
             else:
-                self.progress_status.configure(text=f"⚠️ Конвертация завершена с ошибками ({failed})")
+                self.progress_status.configure(text=self._get_text("progress_status_errors"))
             
             # Показываем сообщение о завершении
             self.root.after(2000, self._show_completion_message)
             
         except Exception as e:
-            self._log_message(f"❌ Критическая ошибка: {str(e)}")
+            self._log_message(self._get_text("critical_error"))
             self.progress_status.configure(text="❌ Ошибка конвертации")
         
         finally:
@@ -946,11 +1222,9 @@ class ModernConverterGUI:
     
     def _show_completion_message(self):
         """Показать сообщение о завершении"""
-        from CTkMessagebox import CTkMessagebox
-        
         CTkMessagebox(
             title="Конвертация завершена",
-            message="Все файлы успешно конвертированы!",
+            message=self._get_text("messages.conversion_complete"),
             icon="check"
         )
         
@@ -969,7 +1243,13 @@ class ModernConverterGUI:
 
 def main():
     """Главная функция"""
-    app = ModernConverterGUI()
+    # Можно передать язык как аргумент командной строки
+    import sys
+    language = "ru"  # По умолчанию русский
+    if len(sys.argv) > 1:
+        language = sys.argv[1]
+    
+    app = ModernConverterGUI(language)
     app.run()
 
 if __name__ == '__main__':

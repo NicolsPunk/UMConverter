@@ -1,0 +1,74 @@
+{
+  "app_title": "🎬 UMConverter",
+  "main_title": "🎬 Ultimate Media Converter",
+  "subtitle": "Drag and drop files here or click to select",
+  "drop_area_text": "Drag and drop files here\nor click to select",
+  "drop_area_hover": "Drop files here",
+  "select_folder_btn": "📁 Select folder with files",
+  "ffmpeg_status_ok": "✅ FFmpeg initialized.",
+  "ffmpeg_status_error": "❌ FFmpeg not found. Install FFmpeg for converter to work",
+  
+  "loading_title": "⏳ Analyzing files...",
+  "loading_status": "Checking files...",
+  "analyzing_file": "Analyzing file {current}/{total}...",
+  
+  "files_title": "📋 Files to convert",
+  "back_btn": "⬅️ Back",
+  "convert_btn": "🚀 Convert",
+  "current_format": "Current format: {format}",
+  "delete_btn": "🗑️",
+  
+  "output_title": "📁 Select output folder",
+  "select_output_btn": "📂 Select folder",
+  "start_convert_btn": "🚀 Start conversion",
+  
+  "progress_title": "🔄 Converting files",
+  "progress_status_ready": "Ready to convert...",
+  "progress_status_converting": "Converting...",
+  "progress_status_success": "✅ Conversion completed successfully",
+  "progress_status_errors": "⚠️ Conversion completed with errors ({count})",
+  "stop_btn": "⏹️ Stop",
+  
+  "conversion_started": "🚀 Starting conversion...",
+  "converting_file": "📁 Converting: {input} -> {output}",
+  "conversion_success": "✅ Success: {filename}",
+  "conversion_error": "❌ Error: {filename}",
+  "conversion_completed": "📊 Conversion completed!",
+  "conversion_successful": "✅ Successful: {count}",
+  "conversion_failed": "❌ Errors: {count}",
+  "conversion_stopped": "⏹️ Conversion stopped by user",
+  "critical_error": "❌ Critical error: {error}",
+  
+  "messages": {
+    "no_files_found": "No files found for conversion",
+    "drop_error": "Error processing files: {error}",
+    "no_media_files": "No media files found in selected folder",
+    "no_files_to_convert": "No files to convert",
+    "ffmpeg_not_found": "FFmpeg not found. Install FFmpeg for converter to work",
+    "conversion_complete": "All files successfully converted!"
+  },
+  
+  "file_types": {
+    "video": "Video",
+    "audio": "Audio",
+    "image": "Image", 
+    "unknown": "Unknown"
+  },
+  
+  "formats": {
+    "video": ["mp4", "webm", "avi", "mkv", "mov"],
+    "audio": ["mp3", "wav", "aac", "ogg", "opus"],
+    "image": ["webp", "jpg", "png"]
+  },
+  
+  "language": {
+    "title": "Language"
+  },
+  
+  "theme": {
+    "title": "Theme",
+    "dark": "🌙 Dark",
+    "light": "☀️ Light",
+    "system": "🔄 System"
+  }
+} 
