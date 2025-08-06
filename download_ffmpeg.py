@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """
 Скрипт для скачивания готовой сборки FFmpeg для Windows
-Альтернатива сборке из исходников
 """
 
-import os
-import sys
 import subprocess
 import platform
 import zipfile
