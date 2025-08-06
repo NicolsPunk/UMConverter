@@ -224,7 +224,7 @@ class ModernConverterGUI:
     
     def __init__(self):
         self.root = CTk()
-        self.root.title("🎬 Современный Конвертер Медиафайлов")
+        self.root.title("🎬 Ultimate Media Converter")
         self.root.geometry("1000x700")
         self.root.resizable(True, True)
         
