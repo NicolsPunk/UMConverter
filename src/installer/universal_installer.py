@@ -16,7 +16,7 @@ import json
 # Добавляем путь к модулям
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.installer_localization import Localization
+from utils.installer_localization import InstallerLocalization
 from installer.ffmpeg_downloader import FFmpegDownloader
 
 # Настройка логирования
@@ -32,7 +32,7 @@ class UniversalInstaller:
     def __init__(self):
         self.project_dir = Path.cwd()
         self.system = platform.system().lower()
-        self.loc = Localization()
+        self.loc = InstallerLocalization()
         
         # Определяем язык
         if len(sys.argv) > 1 and sys.argv[1] in ['--lang', '-l']:
